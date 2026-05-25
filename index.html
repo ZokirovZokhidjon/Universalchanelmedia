@@ -47,62 +47,51 @@
 </div>
 
 <script>
-    const firebaseConfig = { /* Сизнинг config ўзгармади */ };
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
-    let isAdmin = false;
+    // 1. Админликни текширувчи функция
+    function checkAuth() {
+        const pass = document.getElementById('passInput').value;
+        if(pass === "1975") {
+            isAdmin = true;
+            document.getElementById('loginModal').style.display = 'none';
+            document.getElementById('adminPanel').style.display = 'block';
+            
+            // Админ бўлгандан кейин саҳифани қайтадан render қиламиз, 
+            // шунда "Ўчириш/Таҳрирлаш" тугмалари пайдо бўлади
+            database.ref('movies').once('value').then(snapshot => {
+                render(snapshot.val() || {});
+            });
+            console.log("Админ кириш муваффақиятли!");
+        } else {
+            alert("Парол хато!");
+        }
+    }
 
-    // Оптимизация: Faqat yangi ma'lumot kelganda render qiladi
-    database.ref('movies').on('value', (snapshot) => {
-        render(snapshot.val() || {});
-    });
-
+    // 2. Render функциясидаги Admin текшируви
     function render(data) {
         const grid = document.getElementById('movieGrid');
         grid.innerHTML = '';
+        
         Object.keys(data).forEach(key => {
             const m = data[key];
             const card = document.createElement('div');
             card.className = 'movie-card';
+            
+            // Агар isAdmin true бўлса, администратор тугмаларини қўшиш
+            let adminBtns = isAdmin ? `
+                <div class="admin-btns">
+                    <button class="btn btn-outline" onclick="prepareEdit('${key}')">Таҳрир</button>
+                    <button class="btn btn-danger" onclick="deleteMovie('${key}')">Ўчириш</button>
+                </div>
+            ` : '';
+
             card.innerHTML = `
                 <div class="video-container">${m.embed}</div>
-                <div style="padding:15px;"><h3>${m.name}</h3></div>
-                ${isAdmin ? `<div style="padding:10px;"><button onclick="deleteMovie('${key}')" style="background:red; color:white; border:none; padding:5px 10px;">Ўчириш</button></div>` : ''}
+                <div class="movie-info"><h3>${m.name}</h3></div>
+                ${adminBtns}
             `;
             grid.appendChild(card);
         });
     }
-
-    function saveToFirebase() {
-        const name = document.getElementById('mName').value;
-        const embed = document.getElementById('mEmbed').value;
-        const key = document.getElementById('editKey').value;
-
-        if(name && embed) {
-            if(key) {
-                database.ref('movies/' + key).update({ name, embed });
-            } else {
-                database.ref('movies').push({ name, embed, views: 0 });
-            }
-            // Панелни ёпмаслик учун resetForm'ни ўзгартирдик
-            document.getElementById('mName').value = "";
-            document.getElementById('mEmbed').value = "";
-            document.getElementById('editKey').value = "";
-            alert("Сақланди!");
-        }
-    }
-
-    function checkAuth() {
-        if(document.getElementById('passInput').value === "1975") {
-            isAdmin = true;
-            document.getElementById('loginModal').style.display = 'none';
-            document.getElementById('adminPanel').style.display = 'block';
-            // Админ бўлсак қайта render қиламиз
-            database.ref('movies').once('value').then(s => render(s.val()));
-        } else { alert("Хато!"); }
-    }
-
-    function openLogin() { document.getElementById('loginModal').style.display = 'flex'; }
 </script>
 </body>
 </html>
