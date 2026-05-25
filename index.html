@@ -2,95 +2,79 @@
 <html lang="uz">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zokir Media - Firebase Portal</title>
+    <title>Zokir Media Admin</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <style>
-        :root { --bg: #0a0a0f; --card: #16161e; --gold: linear-gradient(135deg, #f6d365 0%, #fda085 100%); --gold-solid: #f6d365; --text: #f1f5f9; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 50px; }
-        header { background: var(--card); padding: 15px 5%; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(246, 211, 101, 0.2); position: sticky; top: 0; z-index: 100; }
-        .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; transition: 0.3s; }
-        .btn-gold { background: var(--gold); color: #000; }
-        .admin-panel { display: none; max-width: 700px; margin: 20px auto; background: var(--card); padding: 25px; border-radius: 20px; border: 1px solid rgba(246, 211, 101, 0.3); }
-        .input-group { margin-bottom: 15px; }
-        .input-group input, .input-group textarea, .input-group select { width: 100%; padding: 12px; background: #000; border: 1px solid #334155; color: white; border-radius: 8px; }
-        .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 25px; padding: 20px 5%; }
-        .movie-card { background: var(--card); border-radius: 15px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); }
-        .video-container { background: #000; min-height: 250px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-content { background: var(--card); padding: 40px; border-radius: 20px; border: 2px solid var(--gold-solid); text-align: center; }
-    </style>
 </head>
 <body>
 
-<header>
-    <div class="logo-container">UNIVERSAL MEDIA</div>
-    <div id="navBtns"><button class="btn btn-gold" onclick="openLogin()">Шахсий кабинет</button></div>
-</header>
+<button onclick="document.getElementById('loginBox').style.display='block'">Админ</button>
 
-<div id="adminPanel" class="admin-panel">
-    <h2 id="formTitle" style="color: var(--gold-solid); text-align: center;">Фильм қўшиш</h2>
-    <input type="hidden" id="editKey">
-    <div class="input-group"><input type="text" id="mName" placeholder="Фильм номи"></div>
-    <div class="input-group"><textarea id="mEmbed" rows="4" placeholder="Embed код"></textarea></div>
-    <button class="btn btn-gold" style="width: 100%;" onclick="saveToFirebase()">Серверга сақлаш</button>
+<div id="loginBox" style="display:none; position:fixed; top:20%; left:40%; background:#fff; padding:20px; border:1px solid #000;">
+    <input type="password" id="passInput" placeholder="Парол">
+    <button onclick="checkAuth()">Кириш</button>
 </div>
 
-<div class="movie-grid" id="movieGrid"></div>
-
-<div id="loginModal" class="modal">
-    <div class="modal-content">
-        <input type="password" id="passInput" placeholder="Парол" style="padding:10px; width:100%; margin-bottom:10px; background:#000; color:#fff;">
-        <button class="btn btn-gold" onclick="checkAuth()">Кириш</button>
-    </div>
+<div id="adminPanel" style="display:none; background:#eee; padding:20px;">
+    <h2>Админ панел</h2>
+    <input type="text" id="mName" placeholder="Номи">
+    <textarea id="mEmbed" placeholder="Embed код"></textarea>
+    <button onclick="saveMovie()">Сақлаш</button>
 </div>
+
+<div id="movieGrid"></div>
 
 <script>
-    // 1. Админликни текширувчи функция
+    const firebaseConfig = {
+        apiKey: "AIzaSyAV9u_Go4bIuDlC-vM3rH1T9MwLGwe9H3I",
+        databaseURL: "https://universal-media-8f205-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "universal-media-8f205"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Паролни текшириш
     function checkAuth() {
-        const pass = document.getElementById('passInput').value;
-        if(pass === "1975") {
-            isAdmin = true;
-            document.getElementById('loginModal').style.display = 'none';
-            document.getElementById('adminPanel').style.display = 'block';
-            
-            // Админ бўлгандан кейин саҳифани қайтадан render қиламиз, 
-            // шунда "Ўчириш/Таҳрирлаш" тугмалари пайдо бўлади
-            database.ref('movies').once('value').then(snapshot => {
-                render(snapshot.val() || {});
-            });
-            console.log("Админ кириш муваффақиятли!");
+        if(document.getElementById('passInput').value === "1975") {
+            localStorage.setItem('isAdmin', 'true'); // Админлигини сақлаб қўямиз
+            location.reload(); // Саҳифани янгилаймиз
         } else {
-            alert("Парол хато!");
+            alert("Парол нотўғри!");
         }
     }
 
-    // 2. Render функциясидаги Admin текшируви
-    function render(data) {
+    // Саҳифа очилганда админлигини текшириш
+    const isAdmin = localStorage.getItem('isAdmin') === 'true';
+    if(isAdmin) {
+        document.getElementById('adminPanel').style.display = 'block';
+    }
+
+    // Маълумотларни ўқиш ва кўрсатиш
+    db.ref('movies').on('value', (snapshot) => {
         const grid = document.getElementById('movieGrid');
         grid.innerHTML = '';
+        const data = snapshot.val() || {};
         
         Object.keys(data).forEach(key => {
             const m = data[key];
-            const card = document.createElement('div');
-            card.className = 'movie-card';
-            
-            // Агар isAdmin true бўлса, администратор тугмаларини қўшиш
-            let adminBtns = isAdmin ? `
-                <div class="admin-btns">
-                    <button class="btn btn-outline" onclick="prepareEdit('${key}')">Таҳрир</button>
-                    <button class="btn btn-danger" onclick="deleteMovie('${key}')">Ўчириш</button>
-                </div>
-            ` : '';
-
-            card.innerHTML = `
-                <div class="video-container">${m.embed}</div>
-                <div class="movie-info"><h3>${m.name}</h3></div>
-                ${adminBtns}
-            `;
-            grid.appendChild(card);
+            const div = document.createElement('div');
+            div.innerHTML = `<h3>${m.name}</h3><div>${m.embed}</div>`;
+            if(isAdmin) {
+                div.innerHTML += `<button onclick="deleteMovie('${key}')">Ўчириш</button>`;
+            }
+            grid.appendChild(div);
         });
+    });
+
+    function saveMovie() {
+        const name = document.getElementById('mName').value;
+        const embed = document.getElementById('mEmbed').value;
+        db.ref('movies').push({ name, embed });
+        alert("Сақланди!");
+    }
+
+    function deleteMovie(key) {
+        db.ref('movies/' + key).remove();
     }
 </script>
 </body>
