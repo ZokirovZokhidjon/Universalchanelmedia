@@ -2,80 +2,193 @@
 <html lang="uz">
 <head>
     <meta charset="UTF-8">
-    <title>Zokir Media Admin</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Media | Асосий</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background: #0a0a0f; color: #f1f5f9; font-family: 'Segoe UI', sans-serif; }
+        .glass { background: rgba(22, 22, 30, 0.8); backdrop-filter: blur(15px); border-bottom: 1px solid rgba(246, 211, 101, 0.2); }
+        .admin-input { background: #000; border: 1px solid #334155; color: white; border-radius: 12px; padding: 12px; width: 100%; outline: none; margin-bottom: 10px; }
+        .admin-input:focus { border-color: #f6d365; }
+        .movie-card { background: #16161e; border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); transition: 0.3s; }
+        .movie-card:hover { transform: translateY(-5px); border-color: rgba(246, 211, 101, 0.3); }
+        .video-container { position: relative; width: 100%; padding-top: 56.25%; background: #000; }
+        .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
+    </style>
 </head>
-<body>
+<body class="pb-20">
 
-<button onclick="document.getElementById('loginBox').style.display='block'">Админ</button>
+    <!-- HEADER -->
+    <header class="glass sticky top-0 z-50 p-4">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-[#f6d365] to-[#fda085] rounded-xl flex items-center justify-center text-black font-black text-xl shadow-lg shadow-yellow-500/20">U</div>
+                <h1 class="text-xl font-black bg-gradient-to-r from-[#f6d365] to-[#fda085] bg-clip-text text-transparent uppercase tracking-tighter">UNIVERSAL MEDIA</h1>
+            </div>
+            <button id="adminBtn" onclick="handleAuth()" class="bg-gradient-to-r from-[#f6d365] to-[#fda085] text-black px-6 py-2 rounded-xl text-xs font-black shadow-lg active:scale-95 transition-all">
+                ШАХСИЙ КАБИНЕТ
+            </button>
+        </div>
+    </header>
 
-<div id="loginBox" style="display:none; position:fixed; top:20%; left:40%; background:#fff; padding:20px; border:1px solid #000;">
-    <input type="password" id="passInput" placeholder="Парол">
-    <button onclick="checkAuth()">Кириш</button>
-</div>
+    <div class="max-w-7xl mx-auto px-4 mt-8">
+        
+        <!-- АДМИН ПАНЕЛЛАР (Иккита алоҳида блок) -->
+        <div id="adminArea" class="hidden space-y-8 mb-12">
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- 1. ХАБАРЛАР ПАНЕЛИ -->
+                <div class="bg-[#16161e] p-6 rounded-[2rem] border border-blue-500/30">
+                    <h3 class="text-blue-400 font-black mb-4 uppercase text-sm flex items-center"><i class="fas fa-newspaper mr-2"></i> Хабар қўшиш</h3>
+                    <input type="text" id="nTitle" placeholder="Сарлавҳа" class="admin-input">
+                    <input type="file" id="nFile" accept="image/*" onchange="encodeImg(this)" class="admin-input text-[10px]">
+                    <textarea id="nText" rows="3" placeholder="Матн..." class="admin-input"></textarea>
+                    <button onclick="saveNews()" class="w-full bg-blue-600 text-white font-black py-3 rounded-xl text-xs uppercase">Чоп этиш</button>
+                </div>
 
-<div id="adminPanel" style="display:none; background:#eee; padding:20px;">
-    <h2>Админ панел</h2>
-    <input type="text" id="mName" placeholder="Номи">
-    <textarea id="mEmbed" placeholder="Embed код"></textarea>
-    <button onclick="saveMovie()">Сақлаш</button>
-</div>
+                <!-- 2. ФИЛЬМЛАР ПАНЕЛИ -->
+                <div class="bg-[#16161e] p-6 rounded-[2rem] border border-yellow-500/30">
+                    <h3 class="text-yellow-500 font-black mb-4 uppercase text-sm flex items-center"><i class="fas fa-video mr-2"></i> Фильм қўшиш</h3>
+                    <input type="text" id="mName" placeholder="Фильм номи" class="admin-input">
+                    <select id="mGenre" class="admin-input">
+                        <option value="Боевик">Боевик</option>
+                        <option value="Триллер">Триллер</option>
+                        <option value="Фантастика">Фантастика</option>
+                        <option value="Ўзбек фильм">Ўзбек фильм</option>
+                    </select>
+                    <textarea id="mEmbed" rows="3" placeholder="<iframe> кодини жойланг" class="admin-input"></textarea>
+                    <button onclick="saveMovie()" class="w-full bg-yellow-500 text-black font-black py-3 rounded-xl text-xs uppercase text-black">Серверга сақлаш</button>
+                </div>
+            </div>
+        </div>
 
-<div id="movieGrid"></div>
+        <!-- АСОСИЙ КОНТЕНТ -->
+        <div class="grid lg:grid-cols-4 gap-8">
+            <!-- ХАБАРЛАР УСТУНИ (1/4) -->
+            <div class="lg:col-span-1">
+                <h2 class="text-lg font-black mb-6 flex items-center uppercase tracking-widest text-blue-400">
+                    <span class="w-2 h-6 bg-blue-500 mr-3 rounded-full"></span> Янгиликлар
+                </h2>
+                <div id="newsFeed" class="space-y-6"></div>
+            </div>
+
+            <!-- ФИЛЬМЛАР ТЎПЛАМИ (3/4) -->
+            <div class="lg:col-span-3">
+                <h2 class="text-lg font-black mb-6 flex items-center uppercase tracking-widest text-yellow-500">
+                    <span class="w-2 h-6 bg-yellow-500 mr-3 rounded-full"></span> Фильм Портал
+                </h2>
+                <div id="movieGrid" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- КИРИШ МОДАЛИ -->
+    <div id="loginModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+        <div class="bg-[#16161e] border-2 border-yellow-500/50 p-10 rounded-[2.5rem] w-full max-w-sm text-center">
+            <h3 class="text-white font-black text-xl mb-6 uppercase">Админ Кириш</h3>
+            <input type="password" id="pass" maxlength="4" class="w-full bg-black border border-slate-800 rounded-2xl py-4 text-center text-4xl text-yellow-500 tracking-[10px] outline-none mb-6" placeholder="****">
+            <button onclick="verify()" class="w-full bg-yellow-500 text-black font-black py-4 rounded-xl shadow-lg shadow-yellow-500/20">КИРИШ</button>
+            <p onclick="closeLogin()" class="mt-4 text-slate-500 text-xs cursor-pointer">Бекор қилиш</p>
+        </div>
+    </div>
 
 <script>
+    // СИЗНИНГ ФИЛЬМЛАРИНГИЗ ТУРГАН БАЗА КОНФИГИ
     const firebaseConfig = {
         apiKey: "AIzaSyAV9u_Go4bIuDlC-vM3rH1T9MwLGwe9H3I",
+        authDomain: "universal-media-8f205.firebaseapp.com",
         databaseURL: "https://universal-media-8f205-default-rtdb.europe-west1.firebasedatabase.app",
-        projectId: "universal-media-8f205"
+        projectId: "universal-media-8f205",
+        storageBucket: "universal-media-8f205.appspot.com",
+        appId: "1:21945142340:web:796e1d4e85566899b3c011"
     };
+
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    let imgData = "", isLogged = localStorage.getItem('isMovieAdmin') === 'true';
 
-    // Паролни текшириш
-    function checkAuth() {
-        if(document.getElementById('passInput').value === "1975") {
-            localStorage.setItem('isAdmin', 'true'); // Админлигини сақлаб қўямиз
-            location.reload(); // Саҳифани янгилаймиз
-        } else {
-            alert("Парол нотўғри!");
-        }
+    window.onload = () => { if(isLogged) updateUI(); };
+
+    function updateUI() {
+        document.getElementById('adminArea').classList.toggle('hidden', !isLogged);
+        const b = document.getElementById('adminBtn');
+        b.innerText = isLogged ? "ЧИҚИШ" : "ШАХСИЙ КАБИНЕТ";
+        if(isLogged) b.classList.replace('bg-gradient-to-r', 'bg-red-600');
     }
 
-    // Саҳифа очилганда админлигини текшириш
-    const isAdmin = localStorage.getItem('isAdmin') === 'true';
-    if(isAdmin) {
-        document.getElementById('adminPanel').style.display = 'block';
+    function handleAuth() {
+        if(isLogged) { localStorage.removeItem('isMovieAdmin'); location.reload(); }
+        else document.getElementById('loginModal').classList.replace('hidden', 'flex');
+    }
+    function closeLogin() { document.getElementById('loginModal').classList.replace('flex', 'hidden'); }
+
+    function verify() {
+        if(document.getElementById('pass').value === "1975") {
+            localStorage.setItem('isMovieAdmin', 'true');
+            location.reload();
+        } else alert("Хато!");
     }
 
-    // Маълумотларни ўқиш ва кўрсатиш
-    db.ref('movies').on('value', (snapshot) => {
-        const grid = document.getElementById('movieGrid');
-        grid.innerHTML = '';
-        const data = snapshot.val() || {};
-        
-        Object.keys(data).forEach(key => {
-            const m = data[key];
-            const div = document.createElement('div');
-            div.innerHTML = `<h3>${m.name}</h3><div>${m.embed}</div>`;
-            if(isAdmin) {
-                div.innerHTML += `<button onclick="deleteMovie('${key}')">Ўчириш</button>`;
-            }
-            grid.appendChild(div);
+    function encodeImg(el) { const r = new FileReader(); r.onload = e => imgData = e.target.result; r.readAsDataURL(el.files[0]); }
+
+    // САҚЛАШ ФУНКЦИЯЛАРИ
+    function saveNews() {
+        const title = document.getElementById('nTitle').value;
+        if(!title || !imgData) return alert("Маълумот кам!");
+        db.ref('index_posts').push({ title, image: imgData, text: document.getElementById('nText').value }).then(() => location.reload());
+    }
+
+    function saveMovie() {
+        const name = document.getElementById('mName').value, embed = document.getElementById('mEmbed').value;
+        if(!name || !embed) return alert("Тўлдиринг!");
+        const safeEmbed = "B64:" + btoa(encodeURIComponent(embed)); // Сизнинг базангиз учун Base64 формат
+        db.ref('movies').push({ name, embed: safeEmbed, genre: document.getElementById('mGenre').value, views: 0, likes: 0 }).then(() => location.reload());
+    }
+
+    // ХАБАРЛАРНИ ЮКЛАШ
+    db.ref('index_posts').on('value', s => {
+        const data = s.val() || {}, feed = document.getElementById('newsFeed');
+        feed.innerHTML = '';
+        Object.keys(data).reverse().forEach(k => {
+            const item = data[k];
+            feed.innerHTML += `<div class="bg-[#16161e] rounded-2xl overflow-hidden border border-white/5 shadow-xl">
+                <img src="${item.image}" class="w-full h-32 object-cover">
+                <div class="p-4"><h4 class="text-xs font-bold leading-tight">${item.title}</h4>
+                ${isLogged ? `<button onclick="db.ref('index_posts/${k}').remove()" class="text-red-500 text-[10px] mt-2 italic">Ўчириш</button>` : ''}</div>
+            </div>`;
         });
     });
 
-    function saveMovie() {
-        const name = document.getElementById('mName').value;
-        const embed = document.getElementById('mEmbed').value;
-        db.ref('movies').push({ name, embed });
-        alert("Сақланди!");
-    }
-
-    function deleteMovie(key) {
-        db.ref('movies/' + key).remove();
-    }
+    // ФИЛЬМЛАРНИ ЮКЛАШ (Base64 шифрдан ечиш билан)
+    db.ref('movies').on('value', s => {
+        const data = s.val() || {}, grid = document.getElementById('movieGrid');
+        grid.innerHTML = '';
+        Object.keys(data).reverse().forEach(k => {
+            const m = data[k];
+            let videoHtml = m.embed;
+            if(videoHtml.startsWith('B64:')) {
+                videoHtml = decodeURIComponent(atob(videoHtml.replace('B64:', '')));
+            }
+            grid.innerHTML += `<div class="movie-card">
+                <div class="video-container">${videoHtml}</div>
+                <div class="p-5 flex justify-between items-center">
+                    <div>
+                        <h3 class="text-yellow-500 font-bold text-sm">${m.name}</h3>
+                        <p class="text-[10px] text-slate-500 mt-1">#${m.genre}</p>
+                    </div>
+                    <div class="text-[10px] text-slate-400 space-x-2">
+                        <span>👁 ${m.views || 0}</span>
+                        <span>❤️ ${m.likes || 0}</span>
+                    </div>
+                </div>
+                ${isLogged ? `<div class="p-3 border-t border-white/5 flex gap-2">
+                    <button onclick="db.ref('movies/${k}').remove()" class="flex-1 bg-red-600/20 text-red-500 py-2 rounded-lg text-[10px] font-bold">ЎЧИРИШ</button>
+                </div>` : ''}
+            </div>`;
+        });
+    });
 </script>
 </body>
 </html>
